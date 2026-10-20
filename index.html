@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seenpaid | Stop guessing which posts make you money</title>
+<meta name="description" content="Schedule posts across your social channels from one calendar, let your AI agent handle the busywork, and connect tracked clicks to real payments to see which posts bring in revenue.">
+<meta name="theme-color" content="#F3F4F7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cpath d='M3 22Q22 6 41 22Q22 38 3 22Z' fill='none' stroke='%230B1020' stroke-width='3'/%3E%3Ccircle cx='22' cy='22' r='9' fill='%23F5B323'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..900&display=swap">
+<script>const r=document.documentElement;r.classList.add('js');try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches){r.classList.add('anim');setTimeout(()=>{if(!window.__heroReady)r.classList.remove('anim')},4000)}}catch(e){}</script>
+<style>
+/* Seenpaid hero v4.
+   One clock drives everything: the script sets --t (seconds) on .hero-in and CSS derives each element's state
+   from it with calc(). t < 0 is the copy reveal (headline lines, body lines, CTA, terms; same feel as Cube
+   Motion's rise: 12px lift, 640ms, 70ms stagger) while the three boards sit in a shimmering skeleton loading
+   state. At t = 0 the boards resolve one by one (calendar, agent, results). The script also owns what needs
+   real geometry: the cursor, the dragged chip, the pipeline packets and the counters. After the intro
+   (t >= 7.5) the clock keeps running: the pipeline keeps streaming and the cursor wanders until paused.
+   Defaults below are the END frame, so reduced motion shows the finished composition and nothing moves.
+   Board units: 1em = 1/44 of a board. */
+:root{
+  --canvas:#F3F4F7;--card:#fff;--ink:#0B1020;--ink2:#394157;--ink3:#5F687C;--line:#DDE2EA;--line2:#E9ECF2;
+  --blue:#1B3A93;--blue-wash:#E7ECF8;--blue-ink:#14307A;--blue-rail:#3552B0;--blue-lt:#B7C4EE;
+  --green:#067A4B;--green-wash:#E6F7EE;--green-rail:#12B26B;
+  --font:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --tw:clamp(460px,36vw,560px);--gap:clamp(18px,1.7vw,24px);--pad:clamp(16px,1.7vw,26px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font:400 1rem/1.5 var(--font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+svg{display:block;flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* header */
+.top{position:relative;z-index:6}
+.top-in{max-width:1560px;margin-inline:auto;padding-inline:var(--pad);display:flex;align-items:center;justify-content:space-between;gap:24px;height:76px}
+.logo{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font-weight:700;font-size:1.3rem;letter-spacing:-.02em}
+.logo svg{width:32px;height:32px;color:var(--ink)}
+.logo b{font-weight:inherit;color:var(--blue)}
+.nav{display:flex;gap:4px}
+.nav a{padding:10px 14px;border-radius:999px;color:var(--ink2);text-decoration:none;font-weight:500;font-size:.9375rem}
+.nav a:hover{color:var(--ink);background:rgba(11,16,32,.06)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 28px;border-radius:999px;background:var(--ink);color:#fff;font:700 1.0625rem/1 var(--font);text-decoration:none;white-space:nowrap;box-shadow:0 1px 2px rgba(11,16,32,.2),0 14px 28px -14px rgba(11,16,32,.55);transition:background-color .18s}
+.btn:hover{background:var(--blue)}
+.btn svg{width:18px;height:18px;transition:transform .18s}
+.btn:hover svg,.btn:focus-visible svg{transform:translateX(4px)}
+.btn-sm{height:42px;padding:0 20px;font-size:.9375rem}
+.link{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;text-decoration:underline;text-decoration-color:rgba(11,16,32,.28);text-decoration-thickness:1.5px;text-underline-offset:6px}
+.link:hover{text-decoration-color:var(--ink)}
+.link svg{width:16px;height:16px;transition:transform .18s}
+.link:hover svg,.link:focus-visible svg{transform:translateY(3px)}
+
+/* hero: centred copy */
+.hero{position:relative;overflow-x:clip;padding:clamp(28px,4.2vw,60px) 0 clamp(40px,5vw,72px)}
+.hero-in{position:relative;max-width:1560px;margin-inline:auto;padding-inline:var(--pad);container-type:inline-size;
+  --t:7.5;--lift:0;--dropv:0;--morph:1;--selC:0;--selA:0;--selR:1;--rip:1;--rest:1}
+.anim .hero-in{--t:-2;--morph:0;--selR:0;--rest:0;--rip:0}
+.copy{position:relative;z-index:3;text-align:center;max-width:var(--tw);margin-inline:auto}
+h1{margin:0;font-weight:800;font-stretch:84%;font-size:clamp(2.6rem,4.2vw,4rem);line-height:.98;letter-spacing:-.012em}
+h1 .ln{display:block;white-space:nowrap;overflow:hidden;padding-bottom:.14em;margin-bottom:-.14em}
+h1 .in{display:block;opacity:clamp(0,var(--p)*4,1);transform:translateY(calc((1 - var(--e))*115%))}
+.lede{position:relative;left:50%;transform:translateX(-50%);width:max-content;margin:22px 0 0;font-size:clamp(15px,1.2vw,17.6px);line-height:1.55;color:var(--ink2);white-space:nowrap}
+.ll{display:inline-block;opacity:var(--e);transform:translateY(calc((1 - var(--e))*12px))}
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 26px;margin-top:26px;opacity:var(--e);transform:translateY(calc((1 - var(--e))*12px))}
+.terms{width:100%;max-width:320px;margin:14px auto 0;font-size:.875rem;line-height:1.55;color:var(--ink2);text-wrap:balance;opacity:var(--e);transform:translateY(calc((1 - var(--e))*12px))}
+.terms strong{color:var(--ink);font-weight:700}
+
+/* motion helpers */
+.tl{--p:clamp(0,calc((var(--t) - var(--s))/var(--d)),1);--e:calc(1 - (1 - var(--p))*(1 - var(--p))*(1 - var(--p)))}
+.tg{--g:clamp(0,calc((var(--t) - var(--gs))/var(--gd)),1)}
+.tl2{--p2:clamp(0,calc((var(--t) - var(--s2))/var(--d2)),1);--Lc:clamp(0,calc((var(--p2) - .3)*1.6),1);--Ls:calc(1 - clamp(0,calc(var(--p2)*2.2),1))}
+
+/* boards */
+.board{position:relative;line-height:1.3}
+.pl{background:var(--card);border:1px solid var(--line);border-radius:1.4em;box-shadow:0 .1em .3em rgba(11,16,32,.06),0 1.8em 3.4em -1.6em rgba(11,16,32,.28)}
+.pl::after{content:"";position:absolute;inset:-.55em;border:.2em solid var(--blue);border-radius:1.9em;opacity:var(--sel,0);pointer-events:none;z-index:4}
+.clip{position:absolute;inset:0;overflow:hidden;border-radius:inherit}
+/* loading state: each board is a shimmering skeleton until its turn, then resolves into the real content */
+.cal .clip,.body{opacity:var(--Lc);transform:translateY(calc((1 - var(--Lc))*12px))}
+.body{overflow:hidden;border-radius:inherit}
+.agent .body{height:100%;padding:1.6em 1.8em}
+.sk{display:none}
+.anim .sk{display:block;position:absolute;inset:0;z-index:2;overflow:hidden;border-radius:inherit;pointer-events:none;opacity:var(--Ls)}
+.anim .loaded .sk{display:none}
+.sk i{position:absolute;left:calc(var(--x)*1em);top:calc(var(--y)*1em);width:calc(var(--w)*1em);height:calc(var(--h)*1em);border-radius:var(--r,.5em);background:#E6E9F0;overflow:hidden}
+.sk i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 15%,rgba(255,255,255,.8) 50%,transparent 85%);transform:translateX(-100%);animation:shimmer 1.6s ease-in-out infinite}
+@keyframes shimmer{to{transform:translateX(100%)}}
+.cal{width:44em;height:31em;--sel:var(--selC);opacity:var(--e);transform:translateY(calc((1 - var(--e))*1.4em))}
+.agent{width:33em;height:15.4em;z-index:2;--sel:var(--selA);opacity:var(--e);transform:translateY(calc((1 - var(--e))*1.4em))}
+.res{width:44em;height:40.5em;--sel:var(--selR);opacity:var(--e);transform:translateY(calc((1 - var(--e))*1.4em))}
+.mk{flex:none;width:1.5em;height:1.5em;fill:currentColor}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:.4em;padding:0 .8em;border-radius:999px;font-size:1.15em;font-weight:600;white-space:nowrap}
+.pill svg{width:1em;height:1em}
+.sch{background:var(--blue-wash);color:var(--blue-ink);box-shadow:inset 0 0 0 1px #C7D1EA}
+.pub{background:var(--green-wash);color:var(--green);box-shadow:inset 0 0 0 1px #BDEBD6}
+.swap{position:relative;display:block;height:2.3em}
+.swap .pill{position:absolute;inset:0}
+.tm{display:grid;font-variant-numeric:tabular-nums}
+.tm>span{grid-area:1/1}
+.t0{opacity:calc(1 - var(--morph))}
+.t1{opacity:var(--morph)}
+
+/* calendar */
+.cal-top{display:flex;align-items:center;justify-content:space-between;height:3.8em;padding:0 1.6em;border-bottom:1px solid var(--line2)}
+.cal-top b{font-size:1.45em;font-weight:700;letter-spacing:-.01em}
+.cal-top .rng{font-size:1.3em;color:var(--ink3);margin-left:.7em}
+.lg{display:flex;gap:1.3em;font-size:1.2em;color:var(--ink3)}
+.lg i{display:inline-block;width:.7em;height:.7em;margin-right:.45em;border-radius:50%}
+.days,.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.days{height:2.6em;border-bottom:1px solid var(--line2);background:#F8F9FB}
+.days div{display:flex;align-items:center;justify-content:center;gap:.4em;border-left:1px solid var(--line2);font-size:1.25em;color:var(--ink3)}
+.days div:first-child,.cols>div:first-child{border-left:0}
+.days b{font-weight:600;color:var(--ink)}
+.days i{font-style:normal;padding:.05em .45em;border-radius:999px;background:var(--blue);color:#fff;font-weight:700}
+.cols{height:9em}
+.cols>div{position:relative;padding:.5em;border-left:1px solid var(--line2)}
+.ev{border-left:.3em solid var(--blue-rail);border-radius:.6em;background:var(--blue-wash);padding:.45em .55em .5em .6em;font-size:1.15em;line-height:1.25}
+.ev .r1{display:flex;align-items:center;justify-content:space-between;gap:.3em;font-weight:700;color:var(--blue-ink)}
+.ev .ms{display:flex;gap:.25em;color:var(--ink2)}
+.ev .ms svg{width:1em;height:1em;fill:currentColor}
+.ev .cp{margin-top:.2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.ev.is-hover{box-shadow:0 .3em .9em -.3em rgba(11,16,32,.35)}
+.ev.focal{--cx:0px;--cy:0px;position:relative;z-index:5;opacity:var(--e);transform:translate(var(--cx),var(--cy)) scale(calc((.94 + .06*var(--e))*(1 + .05*var(--lift))));transform-origin:center;box-shadow:0 calc(.3em + .9em*var(--lift)) calc(1em + 1.2em*var(--lift)) -.4em rgba(11,16,32,calc(.28 + .1*var(--lift)));background:color-mix(in srgb,var(--green-wash) calc(var(--g)*100%),var(--blue-wash));border-left-color:color-mix(in srgb,var(--green-rail) calc(var(--g)*100%),var(--blue-rail))}
+.ev.focal .r1{color:color-mix(in srgb,var(--green) calc(var(--g)*100%),var(--blue-ink))}
+.ev.focal .ms{margin-top:.25em}
+.drop{position:absolute;left:.5em;right:.5em;top:.5em;height:6.2em;border:.15em dashed var(--blue-rail);border-radius:.8em;background:rgba(27,58,147,.05);opacity:var(--dropv)}
+.jobs{position:absolute;left:1.6em;right:1.6em;top:15.6em}
+.jobs h3{margin:0;height:2.9em;display:flex;align-items:center;font-size:1em;opacity:var(--e)}
+.jobs h3 b{font-size:1.3em;font-weight:600}
+.job{display:grid;grid-template-columns:1.5em minmax(0,1fr) 3.6em 7.8em;gap:.9em;align-items:center;height:2.7em;border-top:1px solid var(--line2);opacity:var(--e);transform:translateX(calc((1 - var(--e))*-.8em));transition:background-color .2s}
+.job.is-hover{background:rgba(27,58,147,.055)}
+.job .mk{color:var(--ink)}
+.job .nm{font-size:1.3em;font-weight:600}
+.job .tm{font-size:1.2em;color:var(--ink3)}
+.jp-s{opacity:calc(1 - clamp(0,var(--g)*1.8,1))}
+.jp-p{opacity:clamp(0,calc((var(--g) - .45)*1.8),1)}
+
+/* AI agent */
+.ag-h{display:flex;align-items:center;gap:.8em;margin-top:.15em;color:var(--ink3);font-size:1.25em;font-weight:600}
+.ag-av{width:1.8em;height:1.8em;border-radius:50%;background:var(--ink);color:var(--blue-lt);display:grid;place-items:center;font-size:1em;font-weight:800;line-height:1}
+.ag-q{margin:.8em 0 0;font-size:1.5em;line-height:1.3;font-weight:500;letter-spacing:-.005em}
+.ag-st{position:relative;height:3.2em;margin-top:.9em;border-top:1px solid var(--line2)}
+.ag-st p{position:absolute;left:0;right:0;top:.9em;margin:0;display:flex;align-items:center;gap:.6em;color:var(--green);font-size:1.25em;font-weight:600;white-space:nowrap}
+.ag-st svg{width:1.15em;height:1.15em;padding:.18em;border-radius:50%;background:var(--green-wash);stroke:var(--green)}
+.s1{opacity:calc(var(--e)*(1 - clamp(0,(var(--t) - var(--b))/.2,1)))}
+.s2{opacity:calc(clamp(0,(var(--t) - var(--a))/.2,1)*(1 - clamp(0,(var(--t) - var(--b))/.2,1)))}
+.s3{opacity:var(--e)}
+
+/* results (light) */
+.res .body{display:flex;flex-direction:column;height:100%;padding:2.2em 2.2em 0}
+.res-h{display:flex;align-items:center;justify-content:space-between;height:2.4em}
+.res-h b{display:inline-flex;align-items:center;gap:.7em;font-size:1.3em;font-weight:600}
+.res-h b i{width:.7em;height:.7em;border-radius:50%;background:var(--blue)}
+.tagpill{padding:.2em .8em;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink3);font-size:1.1em;font-weight:600}
+.res-post{margin-top:1.2em;height:5.6em;padding:.9em 1.3em;border-radius:1em;background:#F6F7FA;box-shadow:inset 0 0 0 1px var(--line);opacity:var(--e)}
+.res-post p{margin:0;font-size:1.45em;font-weight:600;line-height:1.3;color:var(--ink)}
+.res-post div{display:flex;align-items:center;justify-content:space-between;margin-top:.7em;color:var(--ink3);font-size:1.2em}
+.res-post div span{display:inline-flex;align-items:center;gap:.5em}
+.res-post svg.l{width:1.1em;height:1.1em;stroke:currentColor}
+.res-post .ms{display:flex;gap:.7em}
+.res-post .mk{width:1.15em;height:1.15em}
+.res-stat{margin-top:1.8em;opacity:var(--e)}
+.res-stat .lbl{margin:0;font-size:1.25em;color:var(--ink3)}
+.big{display:flex;align-items:flex-end;justify-content:space-between;gap:1.2em;margin-top:.3em}
+.num{font-size:6em;font-weight:800;font-stretch:90%;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:.7em;padding-bottom:.4em;font-size:1.3em;color:var(--ink3)}
+.side b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.ok{display:inline-flex;align-items:center;gap:.45em;height:2.2em;padding:0 .85em;border-radius:999px;background:var(--green-wash);box-shadow:inset 0 0 0 1px #BDEBD6;color:var(--green);font-weight:600;font-variant-numeric:tabular-nums;opacity:var(--e);transform:scale(calc(.85 + .15*var(--e)))}
+.ok svg{width:1.05em;height:1.05em}
+.side>span:last-child{opacity:var(--e)}
+.ledger{position:relative}
+.lh{display:grid;grid-template-columns:minmax(0,1fr) 2.6em 11.4em 8.2em;column-gap:.6em;margin-top:1.4em;height:1.9em;align-items:center;padding-top:.2em;border-top:1px dashed #CBD1DD;color:var(--ink3);opacity:var(--e)}
+.lh span{font-size:1.2em}
+.lh span:nth-child(2){grid-column:3}
+.lr{display:grid;grid-template-columns:minmax(0,1fr) 2.6em 11.4em 8.2em;column-gap:.6em;align-items:center;height:3em;border-top:1px solid var(--line2);transition:background-color .2s}
+.lr.is-hover{background:rgba(27,58,147,.055)}
+.wait{position:absolute;left:0;right:0;top:2.5em;height:12em;display:grid;place-items:center;margin:0;font-size:1.3em;color:var(--ink3);opacity:calc(var(--e)*(1 - clamp(0,(var(--t) - var(--b))/.25,1)))}
+.cl{display:inline-flex;align-items:center;gap:.6em;font-size:1.3em;font-variant-numeric:tabular-nums;opacity:var(--e);transform:translateX(calc((1 - var(--e))*-.8em))}
+.cl .mk{width:1.15em;height:1.15em;color:var(--ink3)}
+.cl i{flex:none;width:.55em;height:.55em;border-radius:50%;background:var(--blue)}
+.cl em{font-style:normal;color:var(--ink3)}
+.cl.none{color:var(--ink3)}
+.cl.none i{background:transparent;box-shadow:inset 0 0 0 1px var(--ink3)}
+.cx{position:relative;height:2px;opacity:var(--e)}
+.cx::before{content:"";position:absolute;inset:0;background:var(--green-rail);transform-origin:left;transform:scaleX(var(--e))}
+.cx::after{content:"";position:absolute;right:0;top:-.28em;width:.6em;height:.6em;border-top:2px solid var(--green-rail);border-right:2px solid var(--green-rail);transform:rotate(45deg);opacity:var(--e)}
+.cx.dash::before{background:repeating-linear-gradient(90deg,#9AA3B5 0 .35em,transparent .35em .65em);transform:none}
+.cx.dash::after{display:none}
+.pay{display:inline-flex;align-items:center;gap:.6em;opacity:var(--e);transform:translateX(calc((1 - var(--e))*-1.6em))}
+.pay svg{width:1.7em;height:1.7em}
+.pay b{font-size:1.5em;font-weight:700;font-variant-numeric:tabular-nums}
+.pay em{font-style:normal;font-size:1.2em;color:var(--ink3)}
+.pay.off b{color:var(--ink3)}
+.pay.off svg{opacity:.45}
+.st2{justify-self:end;opacity:var(--e);transform:scale(calc(.85 + .15*var(--e)))}
+.mt,.um{display:inline-flex;align-items:center;gap:.4em;height:2.1em;padding:0 .8em;border-radius:999px;font-size:1.15em;font-weight:600;white-space:nowrap}
+.mt{background:var(--green-wash);box-shadow:inset 0 0 0 1px #BDEBD6;color:var(--green)}
+.um{background:#F1F2F6;box-shadow:inset 0 0 0 1px #C9CFDB;color:var(--ink3)}
+.mt svg{width:1em;height:1em}
+.res-note{margin:auto 0 0;padding:0 0 1.7em;font-size:1.2em;line-height:1.35;color:var(--ink3);opacity:var(--e)}
+
+/* pipeline + cursor */
+.pipe{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.pipe-u{z-index:1}
+.pipe-o{z-index:5}
+.dr{stroke-dasharray:100;stroke-dashoffset:calc((1 - var(--e))*100);opacity:clamp(0,var(--p)*40,1)}
+.fade{opacity:var(--e)}
+.cursor,.rest{width:2.6em;height:3em;pointer-events:none;transform-origin:.32em .27em}
+.cursor{position:absolute;left:0;top:0;z-index:20;will-change:transform}
+.anim .cursor{opacity:0}
+.arrow{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(11,16,32,.3))}
+.tag{position:absolute;left:1.15em;top:1.6em;display:flex;align-items:center;gap:.55em;padding:.23em .85em .23em .23em;border-radius:999px;background:var(--blue);color:#fff;font:500 1.4em/1 var(--font);white-space:nowrap;box-shadow:0 .3em .9em -.15em rgba(27,58,147,.45)}
+.tag b{font-weight:500}
+.tag img{width:1.7em;height:1.7em;border-radius:50%;object-fit:cover;border:.11em solid #fff;background:#fff}
+.rip{position:absolute;left:-1.2em;top:-1.3em;width:3em;height:3em;border:.2em solid var(--blue);border-radius:50%;opacity:calc(clamp(0,var(--rip)*20,1)*(1 - var(--rip)));transform:scale(calc(.3 + 1.4*var(--rip)))}
+.rest{position:absolute;left:25.5em;top:19.3em;z-index:6;opacity:var(--rest)}
+
+/* footer of the composition */
+.cap{position:relative;z-index:4;display:flex;flex-direction:column;align-items:flex-start;gap:10px;opacity:var(--e)}
+.cap p{margin:0;max-width:22em;font-size:.8125rem;line-height:1.45;color:var(--ink3)}
+.ctl{display:flex;gap:8px}
+.ctl[hidden]{display:none}
+.ctl button{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px 0 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:600 .8125rem/1 var(--font);cursor:pointer}
+.ctl button:hover{border-color:#C3CAD8}
+.ctl button:disabled{opacity:.45;cursor:default}
+.ctl svg{width:15px;height:15px}
+
+/* mobile workflow cue */
+.cue{display:none;list-style:none;margin:0 0 14px;padding:0;grid-template-columns:repeat(4,1fr);gap:6px}
+.cue li{position:relative;padding-top:9px;border-top:3px solid var(--line);font-size:.8125rem;font-weight:600;line-height:1.25;color:var(--ink2);opacity:calc(.5 + .5*var(--e))}
+.cue li::before{content:"";position:absolute;left:0;top:-3px;height:3px;width:calc(var(--e)*100%);background:var(--blue)}
+
+/* layouts */
+@media(min-width:1280px){
+  .hero-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,var(--tw)) minmax(0,1fr);grid-template-rows:auto auto;column-gap:var(--gap);align-items:end}
+  .copy{grid-column:2;grid-row:1;align-self:start;width:100%}
+  .board,.cursor{font-size:clamp(8.2px,calc((100cqw - var(--tw) - 2*var(--gap))/88),11.4px)}
+  .cal{grid-column:1;grid-row:1;justify-self:end}
+  .res{grid-column:3;grid-row:1;justify-self:start}
+  .agent{grid-column:2;grid-row:2;justify-self:center;margin-top:28px}
+  .cap{grid-column:3;grid-row:2;justify-self:start;align-self:start;margin-top:16px}
+}
+@media(max-width:1279.98px){
+  .hero-in{display:flex;flex-direction:column;align-items:center}
+  .copy{margin-bottom:40px;max-width:680px}
+  .lede{font-size:clamp(1rem,2.2vw,1.125rem)}
+  .board,.cursor{font-size:calc(min(100cqw,520px)/44)}
+  .board+.board{margin-top:5em}
+  .cap{margin-top:20px;align-self:center;align-items:center;text-align:center}
+  .cap p{text-align:center}
+  .nav{display:none}
+}
+@media(min-width:860px) and (max-width:1279.98px){.nav{display:flex}}
+@media(max-width:719.98px){
+  .nav{display:none}
+  h1{font-size:clamp(2.1rem,10.6vw,2.9rem)}
+  .lede{position:static;width:auto;margin:22px auto 0;font-size:1.0625rem;white-space:normal;text-wrap:pretty;opacity:var(--e);transform:translateY(calc((1 - var(--e))*12px))}
+  .ll{display:inline;opacity:1;transform:none}
+  .lb{display:none}
+  .cal,.agent,.pipe,.cursor{display:none}
+  .cue{display:grid;width:100%;max-width:520px}
+  .board{font-size:10.5px}
+  .res{width:100%;max-width:520px;height:auto}
+  .res .body{height:auto;padding-bottom:1.8em}
+  .res .sk i{display:none}
+  .res .sk::before{content:"";position:absolute;inset:2.2em;border-radius:1em;background:#E6E9F0}
+  .res .sk::after{content:"";position:absolute;inset:2.2em;border-radius:1em;background:linear-gradient(100deg,transparent 15%,rgba(255,255,255,.8) 50%,transparent 85%);transform:translateX(-100%);animation:shimmer 1.6s ease-in-out infinite}
+  .rest{display:none}
+  .res-post{height:auto;min-height:5.6em}
+  .big{flex-direction:column;align-items:flex-start;gap:.5em}
+  .side{flex-direction:row;align-items:center;flex-wrap:wrap;gap:.6em 1.2em;padding-bottom:0}
+  .res-note{margin-top:1.2em;padding-bottom:0}
+  .lh,.lr{grid-template-columns:minmax(0,1fr) auto auto;column-gap:1em}
+  .lh span:nth-child(2){grid-column:2}
+  .cx,.pay em{display:none}
+  .cl{font-size:1.2em}
+  .wait{display:none}
+  .cta .btn{width:100%;justify-content:center}
+  .btn{height:54px;padding:0 24px}
+}
+@media(max-width:479.98px){
+  .top-in{gap:12px}
+  .logo{font-size:1.15rem}
+  .logo svg{width:28px;height:28px}
+  .btn-sm{padding:0 15px;font-size:.875rem}
+  .cl .nm,.mt svg{display:none}
+  .lr{height:auto;min-height:3em;padding-block:.3em}
+}
+@media(max-width:339.98px){.logo span{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-logo" viewBox="0 0 44 44"><path d="M3 22 Q22 6 41 22 Q22 38 3 22Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><circle cx="22" cy="22" r="8.5" fill="#F5B323"/><text x="22" y="26.8" text-anchor="middle" font-size="14" font-weight="900" fill="#0B1020" font-family="Archivo,Arial,sans-serif">$</text></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></symbol>
+  <symbol id="i-bs" viewBox="0 0 24 24"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.296 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.206-.659-.298-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8Z"/></symbol>
+  <symbol id="i-th" viewBox="0 0 24 24"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.166 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/></symbol>
+  <symbol id="i-coin" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#F5B323"/><text x="10" y="14.2" text-anchor="middle" font-size="12" font-weight="900" fill="#0B1020" font-family="Archivo,Arial,sans-serif">$</text></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><g fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></g></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 24 28"><path d="M3 2.5v19.2l5-4.7 3.5 8 3.7-1.6-3.5-7.8 7-.2z" fill="#1B3A93" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="top-in">
+    <a class="logo" href="#top" aria-label="Seenpaid home"><svg aria-hidden="true"><use href="#i-logo"/></svg><span>seen<b>paid</b></span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="#product">Product</a><a href="#platforms">Platforms</a><a href="#pricing">Pricing</a><a href="#resources">Resources</a>
+    </nav>
+    <a class="btn btn-sm" href="https://seenpaid.com/signup">Start your 7-day trial</a>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-in">
+
+    <p class="sr">Illustration with sample data. A calendar shows one post scheduled for X, LinkedIn, Threads and Bluesky. Justinas moves it to Thursday 11:00 and the AI agent confirms the change. The post publishes on all four channels, and a pipeline feeds tracked clicks and payments into a results panel: 318 tracked clicks, 3 matched sales and $147.00 of attributable revenue. One payment is unmatched and not counted. The pipeline keeps streaming data and the cursor keeps moving between the boards until paused.</p>
+
+    <div class="copy">
+      <h1 id="hero-title"><span class="ln tl" style="--s:-1.95;--d:.7"><span class="in">Stop guessing</span></span> <span class="ln tl" style="--s:-1.83;--d:.7"><span class="in">which posts make</span></span> <span class="ln tl" style="--s:-1.71;--d:.7"><span class="in">you money.</span></span></h1>
+      <p class="lede tl" style="--s:-1.45;--d:.8"><span class="ll tl" style="--s:-1.45;--d:.64">Publish across your social channels from one calendar. Let your</span><br class="lb"> <span class="ll tl" style="--s:-1.37;--d:.64">AI agent handle the busywork. Then connect tracked clicks to real</span><br class="lb"> <span class="ll tl" style="--s:-1.29;--d:.64">payments to see which posts actually bring in revenue.</span></p>
+      <div class="cta tl" style="--s:-1.17;--d:.64">
+        <a class="btn" href="https://seenpaid.com/signup">Start your 7-day trial <svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="link" href="#how-it-works">See how it works <svg aria-hidden="true"><use href="#i-down"/></svg></a>
+      </div>
+      <p class="terms tl" style="--s:-1.09;--d:.64"><strong>7 days free. Card required.</strong> $0 due today. Cancel before day 8 and pay nothing. Posting to X uses your own X API key.</p>
+    </div>
+
+    <ol class="cue" aria-hidden="true">
+      <li class="tl" style="--s:1.45;--d:.4">Scheduled</li>
+      <li class="tl" style="--s:5.25;--d:.4">Published</li>
+      <li class="tl" style="--s:5.8;--d:.4">Tracked click</li>
+      <li class="tl" style="--s:6.1;--d:.4">Payment matched</li>
+    </ol>
+
+    <!-- 1. calendar -->
+    <div class="board pl cal tl tl2" style="--s:-1.5;--d:.5;--s2:0;--d2:.5" aria-hidden="true">
+      <div class="clip">
+        <div class="cal-top"><span><b>Next 7 days</b><span class="rng">Oct 20 – 26</span></span><span class="lg"><span><i style="background:var(--green-rail)"></i>Published</span><span><i style="background:var(--blue-rail)"></i>Scheduled</span></span></div>
+        <div class="days"><div class="today"><b>Tue</b><i>20</i></div><div><b>Wed</b>21</div><div><b>Thu</b>22</div><div><b>Fri</b>23</div><div><b>Sat</b>24</div></div>
+        <div class="cols">
+          <div></div>
+          <div><div class="ev"><div class="r1"><span>17:30</span><span class="ms"><svg class="mk" aria-hidden="true"><use href="#i-in"/></svg></span></div><div class="cp">Behind the scenes</div></div></div>
+          <div>
+            <i class="drop"></i>
+            <div class="ev focal tl tg" style="--s:.35;--d:.3;--gs:5.25;--gd:.35">
+              <div class="r1"><span class="tm"><span class="t0">09:00</span><span class="t1">11:00</span></span></div>
+              <div class="ms"><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><svg class="mk" aria-hidden="true"><use href="#i-in"/></svg><svg class="mk" aria-hidden="true"><use href="#i-th"/></svg><svg class="mk" aria-hidden="true"><use href="#i-bs"/></svg></div>
+              <div class="cp">My launch checklist is now a template. $49.</div>
+            </div>
+          </div>
+          <div><div class="ev"><div class="r1"><span>09:00</span><span class="ms"><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><svg class="mk" aria-hidden="true"><use href="#i-th"/></svg></span></div><div class="cp">Thread: 5 lessons</div></div></div>
+          <div><div class="ev"><div class="r1"><span>10:00</span><span class="ms"><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><svg class="mk" aria-hidden="true"><use href="#i-bs"/></svg></span></div><div class="cp">Poll: which format?</div></div></div>
+        </div>
+        <div class="jobs">
+          <h3 class="tl" style="--s:.5;--d:.25"><b>This post on 4 channels</b></h3>
+          <div class="job tl tg" style="--s:.55;--d:.25;--gs:5.25;--gd:.25"><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><span class="nm">X</span><span class="tm"><span class="t0">09:00</span><span class="t1">11:00</span></span><span class="swap"><span class="pill sch jp-s">Scheduled</span><span class="pill pub jp-p"><svg aria-hidden="true"><use href="#i-check"/></svg>Published</span></span></div>
+          <div class="job tl tg" style="--s:.63;--d:.25;--gs:5.34;--gd:.25"><svg class="mk" aria-hidden="true"><use href="#i-in"/></svg><span class="nm">LinkedIn</span><span class="tm"><span class="t0">09:00</span><span class="t1">11:00</span></span><span class="swap"><span class="pill sch jp-s">Scheduled</span><span class="pill pub jp-p"><svg aria-hidden="true"><use href="#i-check"/></svg>Published</span></span></div>
+          <div class="job tl tg" style="--s:.71;--d:.25;--gs:5.43;--gd:.25"><svg class="mk" aria-hidden="true"><use href="#i-th"/></svg><span class="nm">Threads</span><span class="tm"><span class="t0">09:00</span><span class="t1">11:00</span></span><span class="swap"><span class="pill sch jp-s">Scheduled</span><span class="pill pub jp-p"><svg aria-hidden="true"><use href="#i-check"/></svg>Published</span></span></div>
+          <div class="job tl tg" style="--s:.79;--d:.25;--gs:5.52;--gd:.25"><svg class="mk" aria-hidden="true"><use href="#i-bs"/></svg><span class="nm">Bluesky</span><span class="tm"><span class="t0">09:00</span><span class="t1">11:00</span></span><span class="swap"><span class="pill sch jp-s">Scheduled</span><span class="pill pub jp-p"><svg aria-hidden="true"><use href="#i-check"/></svg>Published</span></span></div>
+        </div>
+      </div>
+      <div class="sk" aria-hidden="true">
+        <i style="--x:1.6;--y:1.2;--w:10;--h:1.5"></i><i style="--x:12.3;--y:1.3;--w:7.5;--h:1.3"></i>
+        <i style="--x:29.4;--y:1.35;--w:5.4;--h:1.2"></i><i style="--x:35.9;--y:1.35;--w:6.5;--h:1.2"></i>
+        <i style="--x:2.3;--y:4.55;--w:4.2;--h:1.1"></i><i style="--x:11.1;--y:4.55;--w:4.2;--h:1.1"></i><i style="--x:19.9;--y:4.55;--w:4.2;--h:1.1"></i><i style="--x:28.7;--y:4.55;--w:4.2;--h:1.1"></i><i style="--x:37.5;--y:4.55;--w:4.2;--h:1.1"></i>
+        <i style="--x:.5;--y:6.9;--w:7.8;--h:6.1;--r:.6em"></i><i style="--x:9.3;--y:6.9;--w:7.8;--h:4.3;--r:.6em"></i><i style="--x:26.9;--y:6.9;--w:7.8;--h:4.3;--r:.6em"></i><i style="--x:35.7;--y:6.9;--w:7.8;--h:4.3;--r:.6em"></i>
+        <i style="--x:1.6;--y:16.3;--w:15;--h:1.5"></i>
+        <i style="--x:1.6;--y:19.1;--w:1.5;--h:1.5;--r:50%"></i><i style="--x:4;--y:19.25;--w:6;--h:1.2"></i><i style="--x:30.2;--y:19.3;--w:3.4;--h:1.1"></i><i style="--x:34.6;--y:18.7;--w:7.8;--h:2.3;--r:999px"></i>
+        <i style="--x:1.6;--y:21.8;--w:1.5;--h:1.5;--r:50%"></i><i style="--x:4;--y:21.95;--w:8;--h:1.2"></i><i style="--x:30.2;--y:22;--w:3.4;--h:1.1"></i><i style="--x:34.6;--y:21.4;--w:7.8;--h:2.3;--r:999px"></i>
+        <i style="--x:1.6;--y:24.5;--w:1.5;--h:1.5;--r:50%"></i><i style="--x:4;--y:24.65;--w:7;--h:1.2"></i><i style="--x:30.2;--y:24.7;--w:3.4;--h:1.1"></i><i style="--x:34.6;--y:24.1;--w:7.8;--h:2.3;--r:999px"></i>
+        <i style="--x:1.6;--y:27.2;--w:1.5;--h:1.5;--r:50%"></i><i style="--x:4;--y:27.35;--w:6.5;--h:1.2"></i><i style="--x:30.2;--y:27.4;--w:3.4;--h:1.1"></i><i style="--x:34.6;--y:26.8;--w:7.8;--h:2.3;--r:999px"></i>
+      </div>
+    </div>
+
+    <!-- 2. AI agent -->
+    <div class="board pl agent tl tl2" style="--s:-1.4;--d:.5;--s2:.95;--d2:.5" aria-hidden="true">
+      <div class="body">
+      <div class="ag-h"><span class="ag-av">›</span>Your AI agent</div>
+      <p class="ag-q">Schedule this post across my connected channels.</p>
+      <div class="ag-st">
+        <p class="s1 tl" style="--s:1.45;--d:.3;--b:4.4"><svg aria-hidden="true"><use href="#i-check"/></svg>Scheduled on 4 channels</p>
+        <p class="s2" style="--a:4.5;--b:5.2"><svg aria-hidden="true"><use href="#i-check"/></svg>Rescheduled to Thu 11:00 on 4 channels</p>
+        <p class="s3 tl" style="--s:5.25;--d:.3"><svg aria-hidden="true"><use href="#i-check"/></svg>Published on 4 channels</p>
+      </div>
+      </div>
+      <div class="sk" aria-hidden="true">
+        <i style="--x:1.8;--y:1.85;--w:2.25;--h:2.25;--r:50%"></i><i style="--x:4.9;--y:2.5;--w:8.5;--h:1.1"></i>
+        <i style="--x:1.8;--y:5.6;--w:29.4;--h:1.3"></i><i style="--x:1.8;--y:7.55;--w:18;--h:1.3"></i>
+        <i style="--x:1.8;--y:11.2;--w:1.5;--h:1.5;--r:50%"></i><i style="--x:3.9;--y:11.4;--w:17;--h:1.3"></i>
+      </div>
+    </div>
+
+    <!-- 3. results -->
+    <div class="board pl res tl tl2" style="--s:-1.3;--d:.5;--s2:1.85;--d2:.55" aria-hidden="true">
+      <div class="body">
+      <div class="res-h"><b><i></i>Results for this post</b><span class="tagpill">Sample data</span></div>
+      <div class="res-post tl" style="--s:2;--d:.3">
+        <p>My launch checklist is now a template. $49.</p>
+        <div><span><svg class="l" aria-hidden="true" fill="none"><use href="#i-link"/></svg>mybrand.co/launch-kit</span><span class="ms"><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><svg class="mk" aria-hidden="true"><use href="#i-in"/></svg><svg class="mk" aria-hidden="true"><use href="#i-th"/></svg><svg class="mk" aria-hidden="true"><use href="#i-bs"/></svg></span></div>
+      </div>
+      <div class="res-stat tl" style="--s:2.1;--d:.3">
+        <p class="lbl">Attributable revenue</p>
+        <div class="big">
+          <span class="num" data-rev>$147.00</span>
+          <span class="side">
+            <span class="ok tl" style="--s:6.1;--d:.25"><svg aria-hidden="true"><use href="#i-check"/></svg><span data-sales>3 matched sales</span></span>
+            <span class="tl" style="--s:5.8;--d:.35">from <b data-clicks>318</b> tracked clicks</span>
+          </span>
+        </div>
+      </div>
+      <div class="ledger">
+        <div class="lh tl" style="--s:2.2;--d:.3"><span>Tracked click</span><span>Payment</span></div>
+        <p class="wait tl" style="--s:2.3;--d:.3;--b:5.85">Waiting for tracked clicks</p>
+        <div class="lr">
+          <span class="cl tl" style="--s:6.1;--d:.3"><i></i><svg class="mk" aria-hidden="true"><use href="#i-x"/></svg><span class="nm">X</span><em>11:42</em></span>
+          <span class="cx tl" style="--s:6.28;--d:.3"></span>
+          <span class="pay tl" style="--s:6.16;--d:.35"><svg aria-hidden="true"><use href="#i-coin"/></svg><b>$49.00</b><em>Stripe</em></span>
+          <span class="st2 tl" style="--s:6.34;--d:.3"><span class="mt"><svg aria-hidden="true"><use href="#i-check"/></svg>Matched</span></span>
+        </div>
+        <div class="lr">
+          <span class="cl tl" style="--s:6.42;--d:.3"><i></i><svg class="mk" aria-hidden="true"><use href="#i-in"/></svg><span class="nm">LinkedIn</span><em>13:05</em></span>
+          <span class="cx tl" style="--s:6.6;--d:.3"></span>
+          <span class="pay tl" style="--s:6.48;--d:.35"><svg aria-hidden="true"><use href="#i-coin"/></svg><b>$49.00</b><em>Stripe</em></span>
+          <span class="st2 tl" style="--s:6.66;--d:.3"><span class="mt"><svg aria-hidden="true"><use href="#i-check"/></svg>Matched</span></span>
+        </div>
+        <div class="lr">
+          <span class="cl tl" style="--s:6.74;--d:.3"><i></i><svg class="mk" aria-hidden="true"><use href="#i-bs"/></svg><span class="nm">Bluesky</span><em>15:20</em></span>
+          <span class="cx tl" style="--s:6.92;--d:.3"></span>
+          <span class="pay tl" style="--s:6.8;--d:.35"><svg aria-hidden="true"><use href="#i-coin"/></svg><b>$49.00</b><em>Stripe</em></span>
+          <span class="st2 tl" style="--s:6.98;--d:.3"><span class="mt"><svg aria-hidden="true"><use href="#i-check"/></svg>Matched</span></span>
+        </div>
+        <div class="lr">
+          <span class="cl none tl" style="--s:7;--d:.3"><i></i>No tracked click</span>
+          <span class="cx dash tl" style="--s:7.06;--d:.3"></span>
+          <span class="pay off tl" style="--s:7;--d:.3"><svg aria-hidden="true"><use href="#i-coin"/></svg><b>$49.00</b><em>Stripe</em></span>
+          <span class="st2 tl" style="--s:7.1;--d:.3"><span class="um">Unmatched</span></span>
+        </div>
+      </div>
+      <p class="res-note tl" style="--s:7.05;--d:.3">Unmatched payments are not counted as sales from this post.</p>
+      </div>
+      <div class="sk" aria-hidden="true">
+        <i style="--x:2.2;--y:2.75;--w:14;--h:1.3"></i><i style="--x:33.5;--y:2.35;--w:8.3;--h:2.1;--r:999px"></i>
+        <i style="--x:2.2;--y:5.8;--w:39.6;--h:5.6;--r:1em"></i>
+        <i style="--x:2.2;--y:13.35;--w:12.5;--h:1.2"></i><i style="--x:2.2;--y:15.4;--w:24;--h:5.2;--r:1em"></i>
+        <i style="--x:28.9;--y:15.1;--w:12.9;--h:2.9;--r:999px"></i><i style="--x:30.6;--y:18.9;--w:11.2;--h:1.5"></i>
+        <i style="--x:2.2;--y:23.1;--w:7.2;--h:1.1"></i><i style="--x:21.8;--y:23.1;--w:5.6;--h:1.1"></i>
+        <i style="--x:2.2;--y:25.25;--w:10;--h:1.3"></i><i style="--x:21.8;--y:25.05;--w:1.7;--h:1.7;--r:50%"></i><i style="--x:24;--y:25.15;--w:5.5;--h:1.5"></i><i style="--x:33.6;--y:24.85;--w:8.2;--h:2.1;--r:999px"></i>
+        <i style="--x:2.2;--y:28.25;--w:11.5;--h:1.3"></i><i style="--x:21.8;--y:28.05;--w:1.7;--h:1.7;--r:50%"></i><i style="--x:24;--y:28.15;--w:5.5;--h:1.5"></i><i style="--x:33.6;--y:27.85;--w:8.2;--h:2.1;--r:999px"></i>
+        <i style="--x:2.2;--y:31.25;--w:11;--h:1.3"></i><i style="--x:21.8;--y:31.05;--w:1.7;--h:1.7;--r:50%"></i><i style="--x:24;--y:31.15;--w:5.5;--h:1.5"></i><i style="--x:33.6;--y:30.85;--w:8.2;--h:2.1;--r:999px"></i>
+        <i style="--x:2.2;--y:34.25;--w:12;--h:1.3"></i><i style="--x:21.8;--y:34.05;--w:1.7;--h:1.7;--r:50%"></i><i style="--x:24;--y:34.15;--w:5.5;--h:1.5"></i><i style="--x:33.6;--y:33.85;--w:8.2;--h:2.1;--r:999px"></i>
+        <i style="--x:2.2;--y:37.1;--w:31;--h:1.2"></i>
+      </div>
+      <span class="rest" aria-hidden="true"><svg class="arrow"><use href="#i-cursor"/></svg><span class="tag"><img src="https://seenpaid.com/founder.jpg" alt="" width="22" height="22"><b>Justinas</b></span></span>
+    </div>
+
+    <!-- pipeline: tubes under the boards, ports and packets over them -->
+    <svg class="pipe pipe-u" aria-hidden="true">
+      <g fill="none">
+        <path class="seg-l dr tl" style="--s:.85;--d:.4" pathLength="100" stroke="#C9D1E0" stroke-width="14"/>
+        <path class="seg-l dr tl" style="--s:.85;--d:.4" pathLength="100" stroke="#F3F4F7" stroke-width="10"/>
+        <path class="seg-l fade tl" style="--s:1.15;--d:.3" stroke="#1B3A93" stroke-width="1.6" stroke-dasharray="1.5 6" stroke-linecap="round"/>
+        <path class="seg-r dr tl" style="--s:1.75;--d:.4" pathLength="100" stroke="#C9D1E0" stroke-width="14"/>
+        <path class="seg-r dr tl" style="--s:1.75;--d:.4" pathLength="100" stroke="#F3F4F7" stroke-width="10"/>
+        <path class="seg-r fade tl" style="--s:2.05;--d:.3" stroke="#1B3A93" stroke-width="1.6" stroke-dasharray="1.5 6" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <svg class="pipe pipe-o" aria-hidden="true">
+      <g fill="#fff" stroke="#1B3A93" stroke-width="2">
+        <circle class="port fade tl" id="port0" style="--s:.85;--d:.2" r="5.5"/>
+        <circle class="port fade tl" id="port1" style="--s:1.2;--d:.2" r="5.5"/>
+        <circle class="port fade tl" id="port2" style="--s:1.75;--d:.2" r="5.5"/>
+        <circle class="port fade tl" id="port3" style="--s:2.1;--d:.2" r="5.5"/>
+      </g>
+      <g id="pk-post" opacity="0"><rect x="-13" y="-7" width="26" height="14" rx="5" fill="#fff" stroke="#1B3A93" stroke-width="1.8"/><path d="M-7 -2H6M-7 2.5H1" stroke="#8D9AC2" stroke-width="1.6" stroke-linecap="round"/></g>
+    </svg>
+
+    <!-- Justinas -->
+    <div class="cursor" aria-hidden="true"><i class="rip"></i><svg class="arrow"><use href="#i-cursor"/></svg><span class="tag"><img src="https://seenpaid.com/founder.jpg" alt="" width="22" height="22"><b>Justinas</b></span></div>
+
+    <div class="cap tl" style="--s:-1.2;--d:.5">
+      <div class="ctl" hidden>
+        <button class="pp" type="button"><svg aria-hidden="true"><use href="#i-pause"/></svg><span>Pause</span></button>
+        <button class="rp" type="button"><svg aria-hidden="true"><use href="#i-replay"/></svg><span>Replay</span></button>
+      </div>
+      <p>Sample data. Illustrative figures, not customer results.</p>
+    </div>
+
+  </div>
+</section>
+</main>
+
+<script>
+(() => {
+  const root = document.documentElement, hero = document.querySelector('.hero-in');
+  if (!hero || !root.classList.contains('js')) return;
+  try {
+    const anim = root.classList.contains('anim');
+    const END = 7.5, START = -2, REPLAY0 = -.45, BLUE = '#1B3A93';   // t<0: the copy reveals while the boards sit in their loading state; t=0: the first board resolves
+    window.__heroReady = true;
+    const $ = s => hero.querySelector(s), $$ = s => [...hero.querySelectorAll(s)];
+    const cal = $('.cal'), agent = $('.agent'), res = $('.res'), chip = $('.ev.focal'), cur = $('.cursor'), rest = $('.rest');
+    const rev = $('[data-rev]'), sales = $('[data-sales]'), clicks = $('[data-clicks]'), post = $('#pk-post');
+    const ctl = $('.ctl'), pp = ctl.querySelector('.pp'), rp = ctl.querySelector('.rp');
+    const svgU = $('.pipe-u'), svgO = $('.pipe-o'), pLeft = $$('.seg-l'), pRight = $$('.seg-r'), ports = [0, 1, 2, 3].map(i => $('#port' + i));
+    const mobile = matchMedia('(max-width:719.98px)'), NS = 'http://www.w3.org/2000/svg';
+    const clamp = x => Math.min(1, Math.max(0, x)), sm = x => x * x * (3 - 2 * x), eo = x => 1 - (1 - x) ** 3;
+    const seg = (t, a, b) => clamp(((t - a) / (b - a)) || 0), mix = (a, b, s) => ({ x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s });
+    const quad = (a, c, b, s) => ({ x: (1 - s) ** 2 * a.x + 2 * (1 - s) * s * c.x + s * s * b.x, y: (1 - s) ** 2 * a.y + 2 * (1 - s) * s * c.y + s * s * b.y });
+
+    // data feed of the intro: 14 click dots, 3 matched coins, 1 unmatched coin, all emitted at the agent's right port
+    const DOTS = 14, DOT0 = 5.3, DOTGAP = .07, DOTD = .55, COIN = [5.35, 5.67, 5.99, 6.25], COIND = .75;
+    const arrive = COIN.map(e => e + COIND);
+    // ambient feed after the intro: the pipeline keeps streaming (numbers stay put)
+    const AMB = { r: { e: 6.5, gap: .4, D: .95, n: 4 }, l: { e: 6.9, gap: .85, D: 1.15, n: 3 }, post: { e: 7.4, period: 4.2, D: .95 } };
+    const mk = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent.appendChild(n); return n; };
+    const dots = Array.from({ length: DOTS }, () => mk('circle', { r: 3.4, fill: BLUE, opacity: 0 }, svgO));
+    const coins = COIN.map((_, i) => { const g = mk('g', { opacity: 0 }, svgO); mk('circle', { r: 8, fill: i < 3 ? '#F5B323' : '#C5CCDA', stroke: i < 3 ? '#0B1020' : '#8A93A6', 'stroke-width': 1.5 }, g);
+      const tx = mk('text', { y: 3.6, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 900, fill: i < 3 ? '#0B1020' : '#7B8499', 'font-family': 'Archivo,Arial,sans-serif' }, g); tx.textContent = '$'; return g; });
+    const adR = Array.from({ length: AMB.r.n }, () => mk('circle', { r: 2.9, fill: BLUE, opacity: 0 }, svgO));
+    const adL = Array.from({ length: AMB.l.n }, () => mk('circle', { r: 2.9, fill: BLUE, opacity: 0 }, svgO));
+    const post2 = post.cloneNode(true); post2.removeAttribute('id'); svgO.appendChild(post2);
+
+    const rv = [[cal, 0, .5], [agent, .95, .5], [res, 1.85, .55]];   // [board, content reveal start, duration]: mirrors --s2/--d2 in the markup
+    let geo = null, t = 0, u = 0, last = 0, raf = 0, paused = false, inView = true, started = false, uiVis = false, lenL = 1, lenR = 1, lastP = null, lastBoard = 'res', hov = null;
+    const live = { segs: [], t0: END + .9, from: { x: 0, y: 0 }, board: 'res', rng: Math.random, idx: 0 };
+    const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let x = Math.imul(a ^ a >>> 15, 1 | a); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+    const hover = el => { if (el !== hov) { if (hov) hov.classList.remove('is-hover'); if (el) el.classList.add('is-hover'); hov = el; } };
+
+    const measure = () => {                                     // geometry from the finished layout, in hero-local px
+      const saved = hero.style.getPropertyValue('--t');
+      hero.style.setProperty('--t', END); chip.style.setProperty('--cx', '0px'); chip.style.setProperty('--cy', '0px');
+      const b = hero.getBoundingClientRect();
+      const R = el => { const r = el.getBoundingClientRect(); return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, r: r.right - b.left, b: r.bottom - b.top, cx: r.left - b.left + r.width / 2, cy: r.top - b.top + r.height / 2 }; };
+      let g = null;
+      if (cal.offsetParent) {
+        const em = parseFloat(getComputedStyle(cal).fontSize), flank = matchMedia('(min-width:1280px)').matches, tip = { x: .32 * em, y: .27 * em };
+        const C = R(cal), A = R(agent), S = R(res), cells = $$('.cols>div'), tue = R(cells[0]), cf = R(chip);
+        const lastRow = R($$('.job')[3]), head = R($('.lh')), cmd = R($('.ag-q')), st = R($('.ag-st')), rc = rest.querySelector('.arrow').getBoundingClientRect();
+        const P0 = flank ? { x: C.r, y: lastRow.cy } : { x: C.cx, y: C.b };
+        const P1 = flank ? { x: A.x, y: A.cy } : { x: A.cx, y: A.y };
+        const P2 = flank ? { x: A.r, y: A.cy } : { x: A.cx, y: A.b };
+        const P3 = flank ? { x: S.x, y: head.cy } : { x: S.cx, y: S.y };
+        const curve = (a, c) => { if (flank) { const d = Math.max(30, Math.abs(c.x - a.x) * .55); return `M${a.x} ${a.y}C${a.x + d} ${a.y} ${c.x - d} ${c.y} ${c.x} ${c.y}`; } const d = Math.max(20, (c.y - a.y) * .5); return `M${a.x} ${a.y}C${a.x} ${a.y + d} ${c.x} ${c.y - d} ${c.x} ${c.y}`; };
+        const off = { x: 10, y: 8 }, chipInit = { x: tue.cx, y: cf.cy };
+        const Gp = { x: chipInit.x + off.x, y: chipInit.y + off.y }, Dp = { x: cf.cx + off.x, y: cf.cy + off.y };
+        const Sp = { x: C.x + 22 * em, y: C.y - 4 * em };
+        const T = { x: rc.left - b.left + tip.x, y: rc.top - b.top + tip.y };
+        const A1 = { x: A.x + 2.2 * em, y: cmd.cy }, A2 = { x: A.r - 4 * em, y: cmd.cy }, A3 = { x: A.x + 4 * em, y: st.cy }, A4 = { x: A.x + 24 * em, y: st.cy };
+        const targets = [], tgt = (el, board, fx, fy, hv) => { const r = R(el); targets.push({ x: r.x + r.w * fx, y: r.y + r.h * fy, board, el: hv || null }); };
+        tgt($('.cal-top b'), 'cal', .5, .5);
+        $$('.cols .ev').forEach(e => tgt(e, 'cal', .45, .6, e.classList.contains('focal') ? null : e));
+        $$('.days>div').forEach(d => tgt(d, 'cal', .5, .5));
+        $$('.job').forEach(j => tgt(j, 'cal', .8, .5, j));
+        tgt($('.ag-h'), 'agent', .2, .5); tgt($('.ag-q'), 'agent', .28, .3); tgt($('.ag-q'), 'agent', .7, .62); tgt($('.ag-st'), 'agent', .35, .55);
+        tgt($('.res-h b'), 'res', .5, .5); tgt($('.res-post'), 'res', .4, .5); tgt($('.num'), 'res', .6, .5); tgt($('.ok'), 'res', .5, .5);
+        $$('.lr').forEach(l => tgt(l, 'res', .6, .5, l));
+        g = { W: b.width, H: b.height, em, tip, flank, cy: A.cy, targets, dL: curve(P0, P1), dR: curve(P2, P3), P: [P0, P1, P2, P3], chipInit, chipFinal: { x: cf.cx, y: cf.cy }, Sp, Gp, Dp, A1, A2, A3, A4, T,
+          c1: { x: Sp.x + 6 * em, y: Gp.y - 3 * em }, c2: { x: (Gp.x + Dp.x) / 2, y: Math.min(Gp.y, Dp.y) - 3.5 * em }, c3: { x: Dp.x, y: A1.y }, c6: { x: (A4.x + T.x) / 2 + 20, y: (A4.y + T.y) / 2 - 20 } };
+      }
+      hero.style.setProperty('--t', saved || END);
+      return g;
+    };
+    const resetLive = (t0, from, board) => { live.segs = []; live.t0 = t0; live.from = from; live.board = board; live.rng = mulberry(Math.random() * 4294967296); live.idx = 0; };
+    const layout = () => {
+      geo = measure();
+      for (const s of [svgU, svgO]) s.setAttribute('viewBox', `0 0 ${hero.offsetWidth} ${hero.offsetHeight}`);
+      if (!geo) return;
+      pLeft.forEach(p => p.setAttribute('d', geo.dL)); pRight.forEach(p => p.setAttribute('d', geo.dR));
+      lenL = pLeft[0].getTotalLength(); lenR = pRight[0].getTotalLength();
+      ports.forEach((p, i) => { p.setAttribute('cx', geo.P[i].x); p.setAttribute('cy', geo.P[i].y); });
+      if (t < END || !lastP) resetLive(END + .9, geo.T, 'res'); else resetLive(t + .2, lastP, lastBoard);
+    };
+
+    // after the intro the cursor keeps wandering between random spots on the three boards
+    const extendLive = upto => {
+      if (!geo || !geo.targets.length) return;
+      const r = live.rng, L = live.segs[live.segs.length - 1];
+      let tt = L ? L.c : live.t0, pos = L ? L.to : live.from, board = L ? L.board : live.board, prevTg = L ? L.tg : null;
+      while (tt < upto) {
+        const others = ['cal', 'agent', 'res'].filter(b => b !== board), want = r() < .62 ? others[Math.floor(r() * others.length)] : board;
+        let pool = geo.targets.filter(g => g.board === want && g !== prevTg); if (!pool.length) pool = geo.targets.filter(g => g !== prevTg);
+        const tg = pool[Math.floor(r() * pool.length)], dist = Math.hypot(tg.x - pos.x, tg.y - pos.y);
+        const mv = .6 + dist / 1000 + r() * .25, dw = .45 + r() * 1.15;
+        let ctrl;
+        if (geo.flank && ((board === 'cal' && tg.board === 'res') || (board === 'res' && tg.board === 'cal'))) ctrl = { x: (pos.x + tg.x) / 2, y: 2 * geo.cy - (pos.y + tg.y) / 2 };   // dip under the copy
+        else { const mid = mix(pos, tg, .5), nx = -(tg.y - pos.y), ny = tg.x - pos.x, nl = Math.hypot(nx, ny) || 1, bend = (r() - .5) * .45 * dist; ctrl = { x: mid.x + nx / nl * bend, y: mid.y + ny / nl * bend }; }
+        live.segs.push({ a: tt, b: tt + mv, c: tt + mv + dw, from: pos, to: { x: tg.x, y: tg.y }, ctrl, board: tg.board, prev: board, el: tg.el, click: r() < .3, tg });
+        tt += mv + dw; pos = { x: tg.x, y: tg.y }; board = tg.board; prevTg = tg;
+      }
+    };
+    const liveAt = tt => {
+      extendLive(tt + 30);
+      const S = live.segs, none = { p: live.from, press: 0, sel: { cal: 0, agent: 0, res: 1 }, rip: 1, hov: null, board: live.board };
+      if (!S.length || tt < S[0].a) return none;
+      let i = live.idx; if (i >= S.length || tt < S[i].a) i = 0;
+      while (i + 1 < S.length && tt >= S[i + 1].a) i++;
+      live.idx = i;
+      const s = S[i], mv = s.b - s.a, sel = { cal: 0, agent: 0, res: 0 };
+      if (s.prev === s.board) sel[s.board] = 1; else { sel[s.board] = sm(seg(tt, s.a + .35 * mv, s.a + .9 * mv)); sel[s.prev] = 1 - sm(seg(tt, s.a + .05 * mv, s.a + .55 * mv)); }
+      const ck = s.click ? seg(tt, s.b + .12, s.b + .62) : 0;
+      return { p: tt < s.b ? quad(s.from, s.ctrl, s.to, sm(seg(tt, s.a, s.b))) : s.to, press: s.click ? Math.sin(Math.PI * seg(tt, s.b + .12, s.b + .3)) : 0, sel,
+        rip: ck > 0 && ck < 1 ? ck : 1, hov: tt >= s.b && tt < s.c ? s.el : null, board: tt < s.b ? s.prev : s.board };
+    };
+    const cursorAt = tt => {                                   // the scripted intro
+      const g = geo; let p, press = 0;
+      if (tt < 2.35) p = g.Sp;
+      else if (tt < 3.0) p = quad(g.Sp, g.c1, g.Gp, sm(seg(tt, 2.35, 3.0)));
+      else if (tt < 3.15) { p = g.Gp; press = seg(tt, 3.0, 3.08); }
+      else if (tt < 3.8) { p = quad(g.Gp, g.c2, g.Dp, sm(seg(tt, 3.15, 3.8))); press = 1; }
+      else if (tt < 3.95) { p = g.Dp; press = 1 - seg(tt, 3.8, 3.88); }
+      else if (tt < 4.6) p = quad(g.Dp, g.c3, g.A1, sm(seg(tt, 3.95, 4.6)));
+      else if (tt < 4.88) p = mix(g.A1, g.A2, sm(seg(tt, 4.6, 4.88)));          // reads the command left to right
+      else if (tt < 5.0) p = mix(g.A2, g.A3, sm(seg(tt, 4.88, 5.0)));           // next line
+      else if (tt < 5.2) p = mix(g.A3, g.A4, sm(seg(tt, 5.0, 5.2)));            // reads the status
+      else if (tt < 5.8) p = quad(g.A4, g.c6, g.T, sm(seg(tt, 5.2, 5.8)));
+      else { p = g.T; press = Math.sin(Math.PI * seg(tt, 5.9, 6.05)); }
+      return { p, press };
+    };
+
+    const amb = (list, path, len, c, tt) => list.forEach((d, j) => {
+      const t0 = c.e + j * c.gap, f = tt >= t0 ? ((tt - t0) % (c.n * c.gap)) / c.D : -1;
+      if (f >= 0 && f < 1) { const a = path.getPointAtLength(len * f); d.setAttribute('cx', a.x); d.setAttribute('cy', a.y); d.setAttribute('opacity', .85 * Math.min(1, f * 8, (1 - f) * 8)); } else d.setAttribute('opacity', 0);
+    });
+    const pulse = (c, tt) => tt < c.e + c.D ? 0 : Math.max(0, 1 - ((tt - c.e - c.D) % c.gap) / .22);
+
+    const render = () => {
+      const tt = t, set = (k, v) => hero.style.setProperty(k, v);
+      set('--t', tt.toFixed(3));
+      let n = 0; for (let k = 0; k < DOTS; k++) if (tt >= DOT0 + DOTD + DOTGAP * k) n++;
+      clicks.textContent = Math.round(318 * n / DOTS);
+      const m = arrive.slice(0, 3).reduce((a, s) => a + eo(seg(tt, s, s + .25)), 0), c = Math.round(m);
+      rev.textContent = '$' + (49 * m).toFixed(2); sales.textContent = c + (c === 1 ? ' matched sale' : ' matched sales');
+      rv.forEach(([el, s, d]) => el.classList.toggle('loaded', tt >= s + d));          // loaded = skeleton no longer needs to shimmer
+      if (anim && started && tt >= -.05 && ctl.hidden) ctl.hidden = false;
+      if (!geo) return;
+      let p, press, sel, rip;
+      if (tt < END || !anim) {
+        ({ p, press } = cursorAt(Math.min(tt, END)));
+        sel = { cal: seg(tt, 2.9, 3.05) * (1 - seg(tt, 4.3, 4.5)), agent: seg(tt, 4.45, 4.6) * (1 - seg(tt, 5.55, 5.7)), res: seg(tt, 5.65, 5.8) };
+        rip = seg(tt, 5.9, 6.4); hover(null);
+      } else { const L = liveAt(tt); p = L.p; press = L.press; sel = L.sel; rip = L.rip; hover(L.hov); lastBoard = L.board; }
+      lastP = p;
+      cur.style.transform = `translate(${p.x - geo.tip.x}px,${p.y - geo.tip.y}px) scale(${1 - .12 * press})`;
+      cur.style.opacity = anim ? seg(tt, 2.3, 2.55) : 0;
+      set('--rest', anim ? 0 : 1); set('--rip', rip);
+      set('--lift', seg(tt, 3.0, 3.15) * (1 - seg(tt, 3.8, 3.95))); set('--dropv', seg(tt, 3.0, 3.15) * (1 - seg(tt, 3.8, 3.9))); set('--morph', seg(tt, 3.8, 4.0));
+      set('--selC', sel.cal); set('--selA', sel.agent); set('--selR', sel.res);
+      const gc = geo.chipInit, gf = geo.chipFinal, tr = tt < 3.15 ? { x: gc.x - gf.x, y: gc.y - gf.y } : tt < 3.8 ? { x: p.x - geo.Dp.x, y: p.y - geo.Dp.y } : { x: 0, y: 0 };
+      chip.style.setProperty('--cx', tr.x.toFixed(1) + 'px'); chip.style.setProperty('--cy', tr.y.toFixed(1) + 'px');
+      // pipeline packets
+      const at = (path, len, f) => path.getPointAtLength(len * f), tang = (path, len, f) => { const a = at(path, len, f), b = at(path, len, Math.min(1, f + .01)); return { a, ang: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI }; };
+      const pf = seg(tt, 3.95, 4.5);
+      if (pf > 0 && pf < 1) { const { a, ang } = tang(pLeft[0], lenL, sm(pf));
+        post.setAttribute('transform', `translate(${a.x},${a.y}) rotate(${ang}) scale(${1 - .35 * seg(pf, .85, 1)})`); post.setAttribute('opacity', Math.min(1, pf * 8)); } else post.setAttribute('opacity', 0);
+      dots.forEach((d, k) => { const f = (tt - (DOT0 + DOTGAP * k)) / DOTD;
+        if (f > 0 && f < 1) { const a = at(pRight[0], lenR, f); d.setAttribute('cx', a.x); d.setAttribute('cy', a.y); d.setAttribute('opacity', Math.min(1, f * 10, (1 - f) * 10)); } else d.setAttribute('opacity', 0); });
+      coins.forEach((g, i) => { const f = (tt - COIN[i]) / COIND;
+        if (f > 0 && f < 1) { const a = at(pRight[0], lenR, f); g.setAttribute('transform', `translate(${a.x},${a.y})`); g.setAttribute('opacity', Math.min(1, f * 8, (1 - f) * 8)); } else g.setAttribute('opacity', 0); });
+      if (anim) {
+        amb(adR, pRight[0], lenR, AMB.r, tt); amb(adL, pLeft[0], lenL, AMB.l, tt);
+        const q = tt >= AMB.post.e ? ((tt - AMB.post.e) % AMB.post.period) / AMB.post.D : -1;
+        if (q >= 0 && q < 1) { const { a, ang } = tang(pLeft[0], lenL, sm(q)); post2.setAttribute('transform', `translate(${a.x},${a.y}) rotate(${ang}) scale(${1 - .35 * seg(q, .85, 1)})`); post2.setAttribute('opacity', Math.min(1, q * 8)); } else post2.setAttribute('opacity', 0);
+        ports[3].setAttribute('r', 5.5 + 2.4 * pulse(AMB.r, tt)); ports[1].setAttribute('r', 5.5 + 2.4 * pulse(AMB.l, tt));
+      }
+    };
+
+    // clock: intro first, then it simply keeps running (pipeline + cursor stay alive)
+    const warp = x => mobile.matches ? (x < 0 ? x : x < 1.1 ? x + 1.5 : x + 3.9) : x;   // phones only show Results: jump past the calendar / agent / cursor beats
+    const setPP = () => { pp.querySelector('use').setAttribute('href', paused ? '#i-play' : '#i-pause'); pp.querySelector('span').textContent = paused ? 'Play' : 'Pause'; };
+    const run = () => { if (!raf && started && !paused && inView) { last = 0; raf = requestAnimationFrame(tick); } };
+    const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+    const tick = now => {
+      raf = 0; u += Math.min(.1, (now - (last || now)) / 1000); last = now;
+      if (!uiVis && u >= -.02 && u < .3) u = -.02;          // copy is in: hold the loading state until the first board is on screen
+      t = warp(u);
+      if (mobile.matches && t >= END) { t = END; render(); pp.disabled = true; return; }   // phones: finish and hold
+      render(); raf = requestAnimationFrame(tick);
+    };
+    const play = first => { stop(); started = true; paused = false; u = first ? START : REPLAY0; t = warp(u); if (first) ctl.hidden = true; pp.disabled = false; setPP(); if (geo) resetLive(END + .9, geo.T, 'res'); render(); run(); };
+    hero.seek = v => { stop(); paused = true; started = true; ctl.hidden = false; setPP(); t = v; render(); };   // scrub any frame: document.querySelector('.hero-in').seek(5.9)
+
+    layout();
+    t = anim ? START : END; render();
+    new ResizeObserver(() => { layout(); render(); }).observe(hero);
+    document.fonts.ready.then(() => { layout(); render(); });
+    if (!anim) return;
+    pp.addEventListener('click', () => { paused = !paused; setPP(); if (paused) stop(); else run(); });
+    rp.addEventListener('click', () => play(false));
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; if (inView) run(); else stop(); }, { threshold: 0 }).observe(hero);
+    new IntersectionObserver(([e]) => { uiVis = e.isIntersecting; }, { threshold: .3 }).observe(cal.offsetParent ? cal : res);
+    const start = () => new IntersectionObserver(([e], io) => { if (e.isIntersecting) { io.disconnect(); play(true); } }, { threshold: .3 }).observe($('.copy'));
+    Promise.race([document.fonts.load('800 1em Archivo'), new Promise(r => setTimeout(r, 1200))]).then(start);
+  } catch (e) { console.error(e); root.classList.remove('anim'); }
+})();
+</script>
+</body>
+</html>
