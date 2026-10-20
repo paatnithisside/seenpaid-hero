@@ -1,12 +1,15 @@
-# Seenpaid hero
+# Seenpaid hero and design system
 
-Static site, no build step. Deployed on Vercel from `main`.
+Static site, no build step, deployed on Vercel from `main`.
 
 | Path | File | What it is |
 |---|---|---|
 | `/` | `index.html` | The hero section (v4), one self-contained file. |
 | `/designsystem` | `designsystem.html` | The hero's design system: foundations, primitives and every component, with tokens. |
 
-`vercel.json` sets `cleanUrls`, so `designsystem.html` is served at `/designsystem`.
+Also here:
+- `docs/` has the copy and visual brief and the conversion review that the design came from.
+- `AGENTS.md` tells an AI agent how to continue the redesign in the same style.
+- `design-system-source/` generates `designsystem.html` from `index.html` (`node design-system-source/build.mjs`).
 
-`designsystem.html` embeds a copy of the hero's stylesheet (between the `BEGIN hero CSS` and `END hero CSS` comments) so its specimens are the real components. When `index.html` changes, re-copy that block.
+`vercel.json` sets `cleanUrls`, so `designsystem.html` is served at `/designsystem`.

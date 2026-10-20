@@ -1,0 +1,20 @@
+// Type styles, added to the token table (kept apart so tokens.mjs stays about colour, shape and motion).
+import { T } from './tokens.mjs';
+const def = (name, value, role) => (T[name] = { name, value, kind: 'lit', role });
+def('--type-display', '800 · width 84% · clamp(2.6rem, 4.2vw, 4rem)/.98 · −.012em', 'Headline. Phone: clamp(2.1rem, 10.6vw, 2.9rem).');
+def('--type-body', '400 · clamp(15px, 1.2vw, 17.6px)/1.55', 'Body copy. Tablet clamp(1rem, 2.2vw, 1.125rem), phone 1.0625rem.');
+def('--type-terms', '400 · .875rem/1.55', 'Terms note. The bold lead is 700 in --ink.');
+def('--type-button', '700 · 1.0625rem/1', 'Primary button. Small button .9375rem.');
+def('--type-link', '600 · 1rem', 'Text link.');
+def('--type-nav', '500 · .9375rem', 'Nav links.');
+def('--type-logo', '700 · 1.3rem · −.02em', 'Wordmark. 1.15rem under 480px.');
+def('--type-caption', '400 · .8125rem/1.45', 'Caption beside the boards.');
+def('--type-control', '600 · .8125rem/1', 'Pause, Play, Replay; mobile cue labels.');
+def('--type-stat', '800 · width 90% · 6em/1 · −.02em · tabular', 'Revenue figure in Results.');
+def('--type-post', '600 · 1.45em/1.3', 'Post text in the well.');
+def('--type-title', '700 · 1.45em · −.01em', 'Calendar title. The Results title is 600 · 1.3em.');
+def('--type-row', '600 · 1.3em', 'Channel names in rows.');
+def('--type-prompt', '500 · 1.5em/1.3 · −.005em', 'Agent prompt.');
+def('--type-meta', '400 · 1.2–1.3em', 'Ranges, legends, times and labels, in --ink3.');
+def('--type-pill', '600 · 1.15em', 'Pills and chips.');
+def('--type-tag', '500 · 1.4em/1', 'Cursor name tag.');
